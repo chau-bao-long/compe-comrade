@@ -22,22 +22,23 @@ end
 
 --- complete
 function Source.complete(self, context)
-  context.callback({
-    items = {
-      { word = 'January'; };
-      { word = 'February'; };
-      { word = 'March'; };
-      { word = 'April'; };
-      { word = 'May'; };
-      { word = 'June'; };
-      { word = 'July'; };
-      { word = 'August'; };
-      { word = 'September'; };
-      { word = 'October'; };
-      { word = 'November'; };
-      { word = 'December'; };
-    };
-  })
+  local buf_id = vim.fn.bufnr()
+  local buf_changedtick = vim.api.nvim_buf_get_changedtick(buf_id)
+  local buf_name = vim.api.nvim_buf_get_name(buf_id)
+  local row = vim.fn.line('.')
+  local col = vim.fn.col('.')
+  local ret = {
+    buf_id = buf_id,
+    buf_name = buf_name,
+    buf_changedtick = buf_changedtick,
+    row = row,
+    col = col,
+    new_request = true,
+  }
+
+  local results = vim.fn["comrade#RequestCompletion"](buf_id, ret)
+
+  context.callback(results["candidates"])
 end
 
 --- confirm replace suffix
@@ -61,7 +62,8 @@ function Source.documentation(self, context)
   }
 
   -- will show the current selected item documentation
-  context.callback({ doc[context.completed_item.word] })
+  -- context.callback({ doc[context.completed_item.word] })
+  context.callback({})
 end
 
 
