@@ -1,13 +1,11 @@
 local compe = require'compe'
 
-local Source = {}
+local Source = {
+  callback = nil;
+}
 
 function Source.new(client, source)
 	return setmetatable({}, { __index = Source })
-end
-
-local function sleep(n)
-  os.execute("sleep " .. tonumber(n))
 end
 
 --- get_metadata
@@ -24,7 +22,7 @@ function Source.determine(_, context)
 end
 
 --- Return table in form of { items = { word = 'candidate 1'}, { word = 'candidate 2'} }
-local function transformCandidates(candidates)
+local function transform_candidates(candidates)
   local items = {}
 
   for _, c in ipairs(candidates) do
@@ -34,38 +32,45 @@ local function transformCandidates(candidates)
   return { items = items }
 end
 
---- complete
-function Source.complete(self, context)
+local function do_complete()
   local buf_id = vim.fn.bufnr()
   local buf_changedtick = vim.api.nvim_buf_get_changedtick(buf_id)
   local buf_name = vim.api.nvim_buf_get_name(buf_id)
   local row = vim.fn.line('.') - 1
   local col = vim.fn.col('.') - 1
-  local is_finished = false
   local new_request = true
   local results
 
-  while not is_finished do
-    local ret = {
-      buf_id = buf_id,
-      buf_name = buf_name,
-      buf_changedtick = buf_changedtick,
-      row = row,
-      col = col,
-      new_request = new_request,
-    }
+  local timer = vim.loop.new_timer()
 
-    new_request = false
+  timer:start(0, 100, function ()
+    vim.schedule(function()
+      local ret = {
+        buf_id = buf_id,
+        buf_name = buf_name,
+        buf_changedtick = buf_changedtick,
+        row = row,
+        col = col,
+        new_request = new_request,
+      }
+      new_request = false
+      results = vim.fn["comrade#RequestCompletion"](buf_id, ret)
 
-    results = vim.fn["comrade#RequestCompletion"](buf_id, ret)
-    is_finished = results["is_finished"]
+      if results["is_finished"] then
+        local candidates = transform_candidates(results["candidates"])
+        Source.callback(candidates)
 
-    sleep(0.1)
-  end
+        timer:close()
+      end
+    end)
+  end)
+end
 
-  local candidates = transformCandidates(results["candidates"])
+--- complete
+function Source.complete(_, context)
+  Source.callback = context.callback
 
-  context.callback(candidates)
+  do_complete()
 end
 
 --- confirm replace suffix
