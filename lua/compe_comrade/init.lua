@@ -26,7 +26,7 @@ local function transform_candidates(candidates)
   local items = {}
 
   for _, c in ipairs(candidates) do
-    table.insert(items, { word = c.word })
+    table.insert(items, { word = c.word, kind = c.kind })
   end
 
   return { items = items }
